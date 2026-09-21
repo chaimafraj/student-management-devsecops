@@ -1,0 +1,30 @@
+<div class="alert success" *ngIf="successMessage">{{ successMessage }}</div>
+<div class="alert error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+<div class="form-card">
+  <input [(ngModel)]="currentStudent.nom" placeholder="Nom" name="nom">
+  <input [(ngModel)]="currentStudent.email" placeholder="Email" name="email">
+  <input [(ngModel)]="currentStudent.note" type="number" step="0.1" min="0" max="20" placeholder="Note (/20)" name="note">
+  <button (click)="submitStudent()">{{ editingId ? 'Enregistrer' : 'Ajouter' }}</button>
+  <button *ngIf="editingId" (click)="cancelEdit()" class="cancel-btn">Annuler</button>
+</div>
+
+<table>
+  <thead>
+  <tr><th>ID</th><th>Nom</th><th>Email</th><th>Note</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+  <tr *ngFor="let s of students">
+    <td>{{ s.id }}</td>
+    <td>{{ s.nom }}</td>
+    <td>{{ s.email }}</td>
+    <td>{{ s.note }}</td>
+    <td>
+      <button (click)="startEdit(s)" class="edit-btn">Modifier</button>
+      <button (click)="deleteStudent(s.id!)" class="delete-btn">Supprimer</button>
+    </td>
+  </tr>
+  </tbody>
+</table>
+
+<div class="empty-msg" *ngIf="students.length === 0">Aucun étudiant pour le moment.</div>
