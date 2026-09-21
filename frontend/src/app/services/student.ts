@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import {inject, Injectable} from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
@@ -15,7 +15,7 @@ export interface Student {
 export class StudentService {
   private apiUrl = 'http://localhost:8080/api/students';
 
-  constructor(private http: HttpClient) {}
+  private http = inject(HttpClient);
 
   getAll(): Observable<Student[]> {
     return this.http.get<Student[]>(this.apiUrl);

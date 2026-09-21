@@ -1,21 +1,20 @@
-import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { StudentService, Student } from '../../services/student';
 
 @Component({
   selector: 'app-search',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './search.html',
   styleUrl: './search.css'
 })
 export class Search {
-  searchTerm: string = '';
+  searchTerm = '';
   results: Student[] = [];
-  searched: boolean = false;
+  searched = false;
 
-  constructor(private studentService: StudentService) {}
+  private readonly studentService = inject(StudentService);
 
   onSearch(): void {
     if (!this.searchTerm.trim()) return;

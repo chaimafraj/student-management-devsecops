@@ -1,12 +1,12 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, inject, OnInit } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { StudentService, Student } from '../../services/student';
 
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './home.html',
   styleUrl: './home.css'
 })
@@ -14,10 +14,10 @@ export class Home implements OnInit {
   students: Student[] = [];
   editingId: number | null = null;
   currentStudent: Student = { nom: '', email: '', note: 0 };
-  errorMessage: string = '';
-  successMessage: string = '';
+  errorMessage = '';
+  successMessage = '';
 
-  constructor(private studentService: StudentService) {}
+  private readonly studentService = inject(StudentService);
 
   ngOnInit(): void {
     this.loadStudents();
@@ -26,7 +26,7 @@ export class Home implements OnInit {
   loadStudents(): void {
     this.studentService.getAll().subscribe({
       next: (data) => this.students = data,
-      error: () => this.errorMessage = 'Erreur de chargement des étudiants'
+      error: () => this.errorMessage = 'Erreur de chargement des ÃƒÂ©tudiants'
     });
   }
 
@@ -34,10 +34,10 @@ export class Home implements OnInit {
     this.errorMessage = '';
     this.successMessage = '';
 
-    if (this.editingId) {
+    if (this.editingId !== null) {
       this.studentService.update(this.editingId, this.currentStudent).subscribe({
         next: () => {
-          this.successMessage = '✅ Étudiant modifié';
+          this.successMessage = 'âœ… Ã‰	udiant modifiÃ©';
           this.cancelEdit();
           this.loadStudents();
         },
@@ -46,7 +46,7 @@ export class Home implements OnInit {
     } else {
       this.studentService.create(this.currentStudent).subscribe({
         next: () => {
-          this.successMessage = '✅ Étudiant ajouté';
+          this.successMessage = 'âœ… Ã‰	udiant ajoutÃ©';
           this.clearForm();
           this.loadStudents();
         },
@@ -70,20 +70,20 @@ export class Home implements OnInit {
   }
 
   deleteStudent(id: number): void {
-    if (!confirm('Supprimer cet étudiant ?')) return;
+    if (!confirm('Supprimer cet Ã©	udiant ?')) return;
     this.studentService.delete(id).subscribe({
       next: () => {
-        this.successMessage = '🗑️ Étudiant supprimé';
+        this.successMessage = ' Ã‰	udiant supprimÃ©';
         this.loadStudents();
       },
       error: () => this.errorMessage = 'Erreur lors de la suppression'
     });
   }
 
-  handleError(err: any): void {
+  handleError(err: HttpErrorResponse): void {
     if (err.status === 400 && err.error) {
       const errors = Object.values(err.error).join(', ');
-      this.errorMessage = '⚠️ ' + errors;
+      this.errorMessage = 'âš ï¸ ' + errors;
     } else {
       this.errorMessage = 'Une erreur est survenue';
     }

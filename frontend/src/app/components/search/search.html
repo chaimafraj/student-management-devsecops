@@ -1,24 +1,30 @@
 <div class="container">
-  <h1>🔍 Recherche d'un Étudiant</h1>
+  <h1> Recherche d'un Ã‰	udiant</h1>
 
   <div class="search-card">
     <input [(ngModel)]="searchTerm" placeholder="Rechercher par nom, email ou note..." (keyup.enter)="onSearch()">
     <button (click)="onSearch()">Rechercher</button>
   </div>
 
-  <table *ngIf="results.length > 0">
-    <thead>
-    <tr><th>ID</th><th>Nom</th><th>Email</th><th>Note</th></tr>
-    </thead>
-    <tbody>
-    <tr *ngFor="let s of results">
-      <td>{{ s.id }}</td>
-      <td>{{ s.nom }}</td>
-      <td>{{ s.email }}</td>
-      <td>{{ s.note }}</td>
-    </tr>
-    </tbody>
-  </table>
+  @if (results.length > 0) {
+    <table>
+      <thead>
+      <tr><th>ID</th><th>Nom</th><th>Email</th><th>Note</th></tr>
+      </thead>
+      <tbody>
+      @for (s of results; track s.id) {
+        <tr>
+          <td>{{ s.id }}</td>
+          <td>{{ s.nom }}</td>
+          <td>{{ s.email }}</td>
+          <td>{{ s.note }}</td>
+        </tr>
+      }
+      </tbody>
+    </table>
+  }
 
-  <div class="empty-msg" *ngIf="searched && results.length === 0">Aucun résultat trouvé.</div>
+  @if (searched && results.length === 0) {
+    <div class="empty-msg">Aucun rÃ©sultat trouvÃ©.</div>
+  }
 </div>
