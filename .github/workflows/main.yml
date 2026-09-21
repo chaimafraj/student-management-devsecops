@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Ubuntu
+        run: |
+          uname -a
+          lsb_release -a
+
+      - name: Check Git
+        run: git --version
+
+      - name: Run tests
+        run: |
+          echo "Running tests..."
