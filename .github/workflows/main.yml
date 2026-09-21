@@ -20,7 +20,7 @@ jobs:
           lsb_release -a
 
       - name: Check Git
-        run: git --versionn
+        run: git --version
 
       - name: Run tests
         run: |
