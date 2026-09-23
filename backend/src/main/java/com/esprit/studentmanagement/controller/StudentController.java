@@ -1,67 +1,53 @@
 package com.esprit.studentmanagement.controller;
 
 import com.esprit.studentmanagement.model.Student;
-import com.esprit.studentmanagement.repository.StudentRepository;
+import com.esprit.studentmanagement.service.StudentService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/students")
 public class StudentController {
 
-    @Autowired
-    private StudentRepository studentRepository;
+    private final StudentService studentService;
 
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-
-    @GetMapping
-    public List<Student> getAll() {
-        return studentRepository.findAll();
+    public StudentController(StudentService studentService) {
+        this.studentService = studentService;
     }
 
-    // ⚠️ VULNERABLE: SQL Injection (CWE-89) - à des fins pédagogiques (démo SAST)
+    @GetMapping
+    public ResponseEntity<List<Student>> getAll() {
+        return ResponseEntity.ok(studentService.getAllStudents());
+    }
+
     @GetMapping("/search")
-    public List<Student> search(@RequestParam String nom) {
-        String query = "SELECT * FROM student WHERE LOWER(nom) LIKE LOWER('%" + nom + "%') " +
-                "OR LOWER(email) LIKE LOWER('%" + nom + "%') " +
-                "OR CAST(note AS VARCHAR) LIKE '%" + nom + "%'";
-        return jdbcTemplate.query(query, (rs, rowNum) -> {
-            Student s = new Student();
-            s.setId(rs.getLong("id"));
-            s.setNom(rs.getString("nom"));
-            s.setEmail(rs.getString("email"));
-            s.setNote(rs.getDouble("note"));
-            return s;
-        });
+    public ResponseEntity<List<Student>> search(@RequestParam String nom) {
+        return ResponseEntity.ok(studentService.searchStudents(nom));
     }
 
     @GetMapping("/{id}")
-    public Optional<Student> getById(@PathVariable Long id) {
-        return studentRepository.findById(id);
+    public ResponseEntity<Student> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(studentService.getStudentById(id));
     }
 
     @PostMapping
-    public Student create(@Valid @RequestBody Student student) {
-        return studentRepository.save(student);
+    public ResponseEntity<Student> create(@Valid @RequestBody Student student) {
+        Student created = studentService.createStudent(student);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    public Student update(@PathVariable Long id, @Valid @RequestBody Student updated) {
-        Student student = studentRepository.findById(id).orElseThrow();
-        student.setNom(updated.getNom());
-        student.setEmail(updated.getEmail());
-        student.setNote(updated.getNote());
-        return studentRepository.save(student);
+    public ResponseEntity<Student> update(@PathVariable Long id, @Valid @RequestBody Student updated) {
+        return ResponseEntity.ok(studentService.updateStudent(id, updated));
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        studentRepository.deleteById(id);
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        studentService.deleteStudent(id);
+        return ResponseEntity.noContent().build();
     }
 }

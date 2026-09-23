@@ -26,7 +26,7 @@ export class Home implements OnInit {
   loadStudents(): void {
     this.studentService.getAll().subscribe({
       next: (data) => this.students = data,
-      error: () => this.errorMessage = 'Erreur de chargement des ÃƒÂ©tudiants'
+      error: () => this.errorMessage = 'Erreur de chargement des étudiants'
     });
   }
 
@@ -37,7 +37,7 @@ export class Home implements OnInit {
     if (this.editingId !== null) {
       this.studentService.update(this.editingId, this.currentStudent).subscribe({
         next: () => {
-          this.successMessage = 'âœ… Ã‰	udiant modifiÃ©';
+          this.successMessage = 'Étudiant modifié';
           this.cancelEdit();
           this.loadStudents();
         },
@@ -46,7 +46,7 @@ export class Home implements OnInit {
     } else {
       this.studentService.create(this.currentStudent).subscribe({
         next: () => {
-          this.successMessage = 'âœ… Ã‰	udiant ajoutÃ©';
+          this.successMessage = 'Étudiant ajouté';
           this.clearForm();
           this.loadStudents();
         },
@@ -70,10 +70,10 @@ export class Home implements OnInit {
   }
 
   deleteStudent(id: number): void {
-    if (!confirm('Supprimer cet Ã©	udiant ?')) return;
+    if (!confirm('Supprimer cet étudiant ?')) return;
     this.studentService.delete(id).subscribe({
       next: () => {
-        this.successMessage = ' Ã‰	udiant supprimÃ©';
+        this.successMessage = 'Étudiant supprimé';
         this.loadStudents();
       },
       error: () => this.errorMessage = 'Erreur lors de la suppression'
@@ -83,7 +83,7 @@ export class Home implements OnInit {
   handleError(err: HttpErrorResponse): void {
     if (err.status === 400 && err.error) {
       const errors = Object.values(err.error).join(', ');
-      this.errorMessage = 'âš ï¸ ' + errors;
+      this.errorMessage = errors;
     } else {
       this.errorMessage = 'Une erreur est survenue';
     }

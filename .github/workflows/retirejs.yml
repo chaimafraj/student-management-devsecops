@@ -1,0 +1,23 @@
+name: Retire.js
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  retirejs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install retire.js
+        run: npm install -g retire
+
+      - name: Scan frontend for vulnerable JS libraries
+        run: retire --path frontend

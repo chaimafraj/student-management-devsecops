@@ -1,21 +1,17 @@
-import {inject, Injectable} from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
+import { Student } from '../models/student.model';
 
-export interface Student {
-  id?: number;
-  nom: string;
-  email: string;
-  note: number;
-}
+export type { Student };
 
 @Injectable({
   providedIn: 'root'
 })
 export class StudentService {
-  private apiUrl = 'http://localhost:8080/api/students';
-
-  private http = inject(HttpClient);
+  private readonly apiUrl = environment.apiUrl;
+  private readonly http = inject(HttpClient);
 
   getAll(): Observable<Student[]> {
     return this.http.get<Student[]>(this.apiUrl);
@@ -38,6 +34,8 @@ export class StudentService {
   }
 
   search(nom: string): Observable<Student[]> {
-    return this.http.get<Student[]>(`${this.apiUrl}/search?nom=${nom}`);
+    return this.http.get<Student[]>(`${this.apiUrl}/search`, {
+      params: { nom }
+    });
   }
 }
