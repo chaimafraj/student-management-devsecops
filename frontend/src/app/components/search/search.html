@@ -1,5 +1,5 @@
 <div class="container">
-  <h1> Recherche d'un Ã‰	udiant</h1>
+  <h1>Recherche d'un étudiant</h1>
 
   <div class="search-card">
     <input [(ngModel)]="searchTerm" placeholder="Rechercher par nom, email ou note..." (keyup.enter)="onSearch()">
@@ -25,6 +25,6 @@
   }
 
   @if (searched && results.length === 0) {
-    <div class="empty-msg">Aucun rÃ©sultat trouvÃ©.</div>
+    <div class="empty-msg">Aucun résultat trouvé.</div>
   }
 </div>

@@ -1,0 +1,44 @@
+name: Docker stack test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  docker-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare environment file
+        run: cp .env.example .env
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Start stack
+        run: docker compose up -d
+
+      - name: Wait for backend /api/students
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf "http://localhost:8081/api/students" >/dev/null; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            echo "Waiting for backend... ($i/60)"
+            sleep 5
+          done
+          echo "Backend did not become ready in time"
+          docker compose logs
+          exit 1
+
+      - name: Test frontend on port 80
+        run: |
+          curl -sf -o /dev/null -w "%{http_code}\n" "http://localhost:80" | grep -E "200|301|302"
+          echo "Frontend is ready"
+
+      - name: Stop stack
+        if: always()
+        run: docker compose down
