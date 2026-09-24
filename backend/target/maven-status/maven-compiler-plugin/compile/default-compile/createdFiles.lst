@@ -1,7 +1,10 @@
+com\esprit\studentmanagement\service\StudentServiceImpl.class
 com\esprit\studentmanagement\model\Student.class
 com\esprit\studentmanagement\repository\StudentRepository.class
 com\esprit\studentmanagement\controller\GlobalExceptionHandler.class
+com\esprit\studentmanagement\service\StudentService.class
 com\esprit\studentmanagement\config\CorsConfig$1.class
 com\esprit\studentmanagement\BackendApplication.class
+com\esprit\studentmanagement\exception\ResourceNotFoundException.class
 com\esprit\studentmanagement\config\CorsConfig.class
 com\esprit\studentmanagement\controller\StudentController.class
