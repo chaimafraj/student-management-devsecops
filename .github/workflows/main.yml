@@ -16,12 +16,5 @@ jobs:
 
       - name: Check Ubuntu
         run: |
-          uname -a
-          lsb_release -a
-
-      - name: Check Git
-        run: git --version
-
-      - name: Run tests
-        run: |
-          echo "Running tests..."
+          ls 
+          docker compose up --build -d
