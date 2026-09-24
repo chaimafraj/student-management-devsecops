@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { StudentService, Student } from '../../services/student';
@@ -18,6 +18,7 @@ export class Home implements OnInit {
   successMessage = '';
 
   private readonly studentService = inject(StudentService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   ngOnInit(): void {
     this.loadStudents();
@@ -25,8 +26,14 @@ export class Home implements OnInit {
 
   loadStudents(): void {
     this.studentService.getAll().subscribe({
-      next: (data) => this.students = data,
-      error: () => this.errorMessage = 'Erreur de chargement des étudiants'
+      next: (data) => {
+        this.students = data;
+        this.cdr.detectChanges();
+      },
+      error: () => {
+        this.errorMessage = 'Erreur de chargement des étudiants';
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -40,6 +47,7 @@ export class Home implements OnInit {
           this.successMessage = 'Étudiant modifié';
           this.cancelEdit();
           this.loadStudents();
+          this.cdr.detectChanges();
         },
         error: (err) => this.handleError(err)
       });
@@ -49,6 +57,7 @@ export class Home implements OnInit {
           this.successMessage = 'Étudiant ajouté';
           this.clearForm();
           this.loadStudents();
+          this.cdr.detectChanges();
         },
         error: (err) => this.handleError(err)
       });
@@ -75,8 +84,12 @@ export class Home implements OnInit {
       next: () => {
         this.successMessage = 'Étudiant supprimé';
         this.loadStudents();
+        this.cdr.detectChanges();
       },
-      error: () => this.errorMessage = 'Erreur lors de la suppression'
+      error: () => {
+        this.errorMessage = 'Erreur lors de la suppression';
+        this.cdr.detectChanges();
+      }
     });
   }
 
@@ -87,5 +100,6 @@ export class Home implements OnInit {
     } else {
       this.errorMessage = 'Une erreur est survenue';
     }
+    this.cdr.detectChanges();
   }
 }
