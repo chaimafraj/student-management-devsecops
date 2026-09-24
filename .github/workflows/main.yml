@@ -13,8 +13,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Prepare environment file
+        run: cp .env.example .env
 
-      - name: Check Ubuntu
+
+
+      - name: deploy application
         run: |
           ls 
           docker compose up --build -d
