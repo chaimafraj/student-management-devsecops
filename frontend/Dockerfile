@@ -1,5 +1,5 @@
 # Multi-stage build: Angular 22 + Nginx
-FROM node:24-alpine AS build
+FROM node:24.15.0-alpine AS build
 WORKDIR /app
 
 COPY package.json package-lock.json ./
