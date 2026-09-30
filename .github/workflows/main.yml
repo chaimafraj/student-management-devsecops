@@ -60,6 +60,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # Un téléchargement interrompu sur le runner self-hosted peut laisser ce fichier.
+      - name: Remove stale Gitleaks download
+        run: rm -f /tmp/gitleaks.tmp
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
