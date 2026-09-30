@@ -61,14 +61,7 @@ jobs:
           chmod +x mvnw
           ./mvnw -B dependency:resolve dependency:resolve-plugins
 
-      - name: Cache Trivy DBs
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/.trivycache
-          key: ${{ runner.os }}-trivy-db
-          restore-keys: |
-            ${{ runner.os }}-trivy-db
-
+      # SCA via pom.xml / package-lock — no Java DB download needed
       - name: Trivy filesystem scan (backend - Maven deps)
         uses: aquasecurity/trivy-action@master
         with:
@@ -76,8 +69,8 @@ jobs:
           scan-ref: 'backend'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
-          timeout: '30m'
-          cache-dir: ${{ github.workspace }}/.trivycache
+          timeout: '15m'
+          scanners: 'vuln'
 
       - name: Trivy filesystem scan (frontend - npm deps)
         uses: aquasecurity/trivy-action@master
@@ -87,7 +80,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
           timeout: '15m'
-          cache-dir: ${{ github.workspace }}/.trivycache
+          scanners: 'vuln'
 
   # ============ BUILD : construction des images Docker ============
   # Quality Gate : ne se lance que si sast, secrets_scan et scan_dependencies ont réussi
@@ -104,7 +97,10 @@ jobs:
       - name: Build Docker images
         run: docker compose build
 
-  # ============ DOCKER SCAN : vulnérabilités des images container ============
+  # ============ DOCKER SCAN : vulnérabilités OS des images container ============
+  # Les deps Java/npm sont déjà couvertes par scan_dependencies (SCA).
+  # On ignore les JARs ici pour éviter le téléchargement de trivy-java-db (~930 Mo)
+  # qui échoue souvent sur le runner self-hosted (timeout / stream error GCR).
   docker_scan:
     needs: build
     runs-on: self-hosted
@@ -112,31 +108,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Trivy DBs
-        uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/.trivycache
-          key: ${{ runner.os }}-trivy-db
-          restore-keys: |
-            ${{ runner.os }}-trivy-db
-
-      - name: Trivy image scan (backend)
+      - name: Trivy image scan (backend - OS packages)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'student-management-devsecops-backend:latest'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
-          timeout: '30m'
-          cache-dir: ${{ github.workspace }}/.trivycache
+          timeout: '15m'
+          scanners: 'vuln'
+          skip-files: '**/*.jar'
 
-      - name: Trivy image scan (frontend)
+      - name: Trivy image scan (frontend - OS packages)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'student-management-devsecops-frontend:latest'
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
           timeout: '15m'
-          cache-dir: ${{ github.workspace }}/.trivycache
+          scanners: 'vuln'
 
   # ============ DEPLOY : mise en production ============
   # Quality Gate final : ne se lance que si TOUS les contrôles de sécurité ont réussi
