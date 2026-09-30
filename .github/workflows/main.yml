@@ -41,8 +41,28 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Trivy filesystem scan (backend - Maven deps)
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven local repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-m2-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-m2-
+
+      - name: Resolve Maven dependencies (populate local cache)
+        working-directory: backend
+        run: ./mvnw -B dependency:resolve dependency:resolve-plugins
+
+      - name: Trivy filesystem scan (backend - Maven deps, offline)
         uses: aquasecurity/trivy-action@master
+        env:
+          TRIVY_SKIP_JAVA_DB_UPDATE: 'false'
         with:
           scan-type: 'fs'
           scan-ref: 'backend'
