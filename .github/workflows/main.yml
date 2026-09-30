@@ -2,23 +2,109 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
+    branches: [main]
 
 jobs:
-  build:
-    runs-on: self-hosted
 
+  # ============ SAST : analyse statique du code source ============
+  sast:
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Run Semgrep (SAST)
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/security-audit
+
+  # ============ SECRETS SCAN : détection de secrets exposés ============
+  secrets_scan:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks (Secrets Scan)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============ SCA : analyse de composition logicielle (dépendances) ============
+  scan_dependencies:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan (backend - Maven deps)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'backend'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Trivy filesystem scan (frontend - npm deps)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: 'frontend'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+  # ============ BUILD : construction des images Docker ============
+  # Quality Gate : ne se lance que si sast, secrets_scan et scan_dependencies ont réussi
+  build:
+    needs: [sast, secrets_scan, scan_dependencies]
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Prepare environment file
         run: cp .env.example .env
 
+      - name: Build Docker images
+        run: docker compose build
 
+  # ============ DOCKER SCAN : vulnérabilités des images container ============
+  docker_scan:
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: deploy application
-        run: |
-          ls 
-          docker compose up --build -d
+      - name: Trivy image scan (backend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'student-management-devsecops-backend:latest'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Trivy image scan (frontend)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'student-management-devsecops-frontend:latest'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '0'
+
+  # ============ DEPLOY : mise en production ============
+  # Quality Gate final : ne se lance que si TOUS les contrôles de sécurité ont réussi
+  deploy:
+    needs: docker_scan
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare environment file
+        run: cp .env.example .env
+
+      - name: Deploy application
+        run: docker compose up -d
