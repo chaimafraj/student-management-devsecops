@@ -57,7 +57,9 @@ jobs:
 
       - name: Resolve Maven dependencies (populate local cache)
         working-directory: backend
-        run: ./mvnw -B dependency:resolve dependency:resolve-plugins
+        run: |
+          chmod +x mvnw
+          ./mvnw -B dependency:resolve dependency:resolve-plugins
 
       - name: Trivy filesystem scan (backend - Maven deps, offline)
         uses: aquasecurity/trivy-action@master
