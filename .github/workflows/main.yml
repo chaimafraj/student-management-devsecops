@@ -137,6 +137,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Trivy image scan - backend
+        id: backend_image_scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: student-management-devsecops-backend:latest
@@ -155,6 +157,8 @@ jobs:
           path: trivy-backend-image.json
           if-no-files-found: warn
       - name: Trivy image scan - frontend
+        id: frontend_image_scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: student-management-devsecops-frontend:latest
@@ -171,6 +175,11 @@ jobs:
           name: trivy-frontend-image
           path: trivy-frontend-image.json
           if-no-files-found: warn
+      - name: Enforce Docker image quality gate
+        if: steps.backend_image_scan.outcome == 'failure' || steps.frontend_image_scan.outcome == 'failure'
+        run: |
+          echo 'Trivy detected HIGH or CRITICAL vulnerabilities. See the uploaded artifacts for details.'
+          exit 1
 
   deploy_staging:
     name: Déploiement staging
