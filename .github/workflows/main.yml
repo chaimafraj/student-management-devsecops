@@ -61,15 +61,23 @@ jobs:
           chmod +x mvnw
           ./mvnw -B dependency:resolve dependency:resolve-plugins
 
-      - name: Trivy filesystem scan (backend - Maven deps, offline)
+      - name: Cache Trivy DBs
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.trivycache
+          key: ${{ runner.os }}-trivy-db
+          restore-keys: |
+            ${{ runner.os }}-trivy-db
+
+      - name: Trivy filesystem scan (backend - Maven deps)
         uses: aquasecurity/trivy-action@master
-        env:
-          TRIVY_SKIP_JAVA_DB_UPDATE: 'false'
         with:
           scan-type: 'fs'
           scan-ref: 'backend'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
+          timeout: '30m'
+          cache-dir: ${{ github.workspace }}/.trivycache
 
       - name: Trivy filesystem scan (frontend - npm deps)
         uses: aquasecurity/trivy-action@master
@@ -78,6 +86,8 @@ jobs:
           scan-ref: 'frontend'
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
+          timeout: '15m'
+          cache-dir: ${{ github.workspace }}/.trivycache
 
   # ============ BUILD : construction des images Docker ============
   # Quality Gate : ne se lance que si sast, secrets_scan et scan_dependencies ont réussi
@@ -102,12 +112,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Cache Trivy DBs
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.trivycache
+          key: ${{ runner.os }}-trivy-db
+          restore-keys: |
+            ${{ runner.os }}-trivy-db
+
       - name: Trivy image scan (backend)
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: 'student-management-devsecops-backend:latest'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
+          timeout: '30m'
+          cache-dir: ${{ github.workspace }}/.trivycache
 
       - name: Trivy image scan (frontend)
         uses: aquasecurity/trivy-action@master
@@ -115,6 +135,8 @@ jobs:
           image-ref: 'student-management-devsecops-frontend:latest'
           severity: 'CRITICAL,HIGH'
           exit-code: '0'
+          timeout: '15m'
+          cache-dir: ${{ github.workspace }}/.trivycache
 
   # ============ DEPLOY : mise en production ============
   # Quality Gate final : ne se lance que si TOUS les contrôles de sécurité ont réussi
