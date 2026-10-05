@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  TRIVY_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-db:2
+  TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db:1
+
 concurrency:
   group: devsecops-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -86,7 +90,7 @@ jobs:
           ./mvnw -B dependency:resolve dependency:resolve-plugins
       # Une vulnérabilité HIGH ou CRITICAL bloque systématiquement le pipeline.
       - name: Trivy filesystem scan - backend
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: backend
@@ -95,7 +99,7 @@ jobs:
           exit-code: '1'
           format: json
           output: trivy-backend-dependencies.json
-          timeout: 15m
+          timeout: 30m
       - name: Upload backend SCA report
         if: always()
         uses: actions/upload-artifact@v4
@@ -104,7 +108,7 @@ jobs:
           path: trivy-backend-dependencies.json
           if-no-files-found: warn
       - name: Trivy filesystem scan - frontend
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: frontend
@@ -113,7 +117,7 @@ jobs:
           exit-code: '1'
           format: json
           output: trivy-frontend-dependencies.json
-          timeout: 15m
+          timeout: 30m
       - name: Upload frontend SCA report
         if: always()
         uses: actions/upload-artifact@v4
@@ -142,7 +146,7 @@ jobs:
       - name: Trivy image scan - backend
         id: backend_image_scan
         continue-on-error: true
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: student-management-devsecops-backend:latest
           scanners: vuln
@@ -150,7 +154,7 @@ jobs:
           exit-code: '1'
           format: json
           output: trivy-backend-image.json
-          timeout: 15m
+          timeout: 30m
           skip-files: '**/*.jar'
       - name: Upload backend image report
         if: always()
@@ -162,7 +166,7 @@ jobs:
       - name: Trivy image scan - frontend
         id: frontend_image_scan
         continue-on-error: true
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: student-management-devsecops-frontend:latest
           scanners: vuln
@@ -170,7 +174,7 @@ jobs:
           exit-code: '1'
           format: json
           output: trivy-frontend-image.json
-          timeout: 15m
+          timeout: 30m
       - name: Upload frontend image report
         if: always()
         uses: actions/upload-artifact@v4
