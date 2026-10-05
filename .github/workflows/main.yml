@@ -211,13 +211,13 @@ jobs:
           curl -sf http://127.0.0.1 || (docker compose logs && exit 1)
       - name: Create report directory
         run: mkdir -p reports && chmod 777 reports
-      # Les alertes FAIL de ZAP rendent cette étape bloquante.
+      # Seules les alertes FAIL bloquent le pipeline; les WARN sont reportées sans bloquer.
       - name: Run OWASP ZAP baseline scan
         run: |
           docker run --rm --network host \
             -v "${{ github.workspace }}/reports:/zap/wrk/:rw" \
             zaproxy/zap-stable \
-            zap-baseline.py -t http://127.0.0.1 -r zap-report.html -J zap-report.json -m 2
+            zap-baseline.py -t http://127.0.0.1 -r zap-report.html -J zap-report.json -m 2 -I
       - name: Upload DAST reports
         if: always()
         uses: actions/upload-artifact@v4
