@@ -170,6 +170,25 @@ jobs:
           name: trivy-frontend-image
           path: trivy-frontend-image.json
           if-no-files-found: warn
+      - name: Trivy image scan - backend (table)
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: student-management-devsecops-backend:latest
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+          format: table
+          skip-files: '**/*.jar'
+      - name: Trivy image scan - frontend (table)
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: student-management-devsecops-frontend:latest
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+          format: table
       - name: Enforce Docker image quality gate
         if: steps.backend_image_scan.outcome == 'failure' || steps.frontend_image_scan.outcome == 'failure'
         run: |
