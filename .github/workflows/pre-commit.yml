@@ -14,10 +14,29 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.12"
 
       - name: Install pre-commit
-        run: pip install pre-commit
+        run: pip install pre-commit semgrep==1.179.0
+
+      - name: Install Gitleaks
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz -o /tmp/gitleaks.tar.gz
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
+          install /tmp/gitleaks "$HOME/.local/bin/gitleaks"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Add PowerShell compatibility command
+        run: |
+          if ! command -v pwsh >/dev/null 2>&1; then
+            echo "pwsh is required on the runner." >&2
+            exit 1
+          fi
+          mkdir -p "$GITHUB_WORKSPACE/.github/bin"
+          printf '%s\n' '#!/usr/bin/env bash' 'exec pwsh "$@"' > "$GITHUB_WORKSPACE/.github/bin/powershell"
+          chmod +x "$GITHUB_WORKSPACE/.github/bin/powershell"
+          echo "$GITHUB_WORKSPACE/.github/bin" >> "$GITHUB_PATH"
 
       - name: Run pre-commit
         run: pre-commit run --all-files
