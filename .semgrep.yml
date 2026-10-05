@@ -1,0 +1,22 @@
+rules:
+  - id: java-runtime-command-execution
+    languages: [java]
+    severity: ERROR
+    message: "Command execution can lead to injection; use a fixed allowlist and avoid Runtime.exec."
+    metadata:
+      category: security
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+    patterns:
+      - pattern-either:
+          - pattern: Runtime.getRuntime().exec(...)
+          - pattern: new ProcessBuilder(...).start()
+
+  - id: typescript-unsafe-innerhtml
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "Writing untrusted data to innerHTML can cause XSS; prefer Angular template binding."
+    metadata:
+      category: security
+      cwe: "CWE-79: Improper Neutralization of Input During Web Page Generation"
+    patterns:
+      - pattern: $ELEMENT.innerHTML = $VALUE
