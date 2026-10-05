@@ -9,9 +9,12 @@ if (Get-Variable -Name PSNativeCommandUseErrorActionPreference -ErrorAction Sile
     $PSNativeCommandUseErrorActionPreference = $false
 }
 
-$pinnedBinary = Join-Path $env:LOCALAPPDATA 'Programs\gitleaks-8.18.4\gitleaks.exe'
+$pinnedBinary = $null
+if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+    $pinnedBinary = Join-Path $env:LOCALAPPDATA 'Programs\gitleaks-8.18.4\gitleaks.exe'
+}
 
-if (Test-Path -LiteralPath $pinnedBinary) {
+if ($pinnedBinary -and (Test-Path -LiteralPath $pinnedBinary)) {
     $gitleaks = $pinnedBinary
 }
 else {
