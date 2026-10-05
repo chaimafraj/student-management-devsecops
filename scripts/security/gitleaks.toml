@@ -7,11 +7,13 @@ useDefault = true
 
 [[rules]]
 id = "hardcoded-application-secret"
-description = "Hardcoded application secret (api key, password, secret, or token)"
-regex = '''(?i)(?:^|[^A-Za-z0-9])(?:api[-_.]?key|password|secret|token)[ \t]*[=:][ \t]*(?:"[^"\r\n]+"|'[^'\r\n]+'|[^"'#\s](?:[^\s#\r\n]*))'''
-keywords = ["api.key", "api_key", "api-key", "apikey", "password", "secret", "token"]
+description = "Hardcoded Java/Spring Boot application secret property"
+regex = '''(?i)(?:^|[^A-Za-z0-9])(?:external\.api\.key|api[._-]?key|apikey|password|secret|token)[ \t]*[=:][ \t]*(?:"[^"\r\n]+"|'[^'\r\n]+'|[^"'#\s][^\s#\r\n]*)'''
+entropy = 0
+path = '''(?i)(^|[/\\])(?:application|bootstrap)(?:-[^/\\]+)?\.(?:properties|ya?ml)$'''
+keywords = ["external", "api", "key", "external.api.key", "api.key", "api_key", "api-key", "apikey", "password", "secret", "token"]
 
 [rules.allowlist]
 description = "Environment variable placeholder, including empty or non-empty defaults"
 regexTarget = "line"
-regexes = ['''(?i)(?:api[-_.]?key|password|secret|token)[ \t]*[=:][ \t]*["']?\$\{[A-Za-z_][A-Za-z0-9_]*[^}\r\n]*\}["']?[ \t]*(?:\#.*)?\r?$''']
+regexes = ['''(?i)(?:^|[^A-Za-z0-9])(?:external\.api\.key|api[._-]?key|apikey|password|secret|token)[ \t]*[=:][ \t]*["']?\$\{[A-Za-z_][A-Za-z0-9_]*[^}\r\n]*\}["']?[ \t]*(?:\#.*)?\r?$''']
