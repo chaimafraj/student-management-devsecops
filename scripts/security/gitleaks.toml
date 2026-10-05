@@ -1,0 +1,17 @@
+# Local Shift-Left rules. This file is intentionally not `.gitleaks.toml`
+# at the repository root, so the CI gitleaks-action does not auto-load it.
+title = "Student Management local secret rules"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "hardcoded-application-secret"
+description = "Hardcoded application secret (api key, password, secret, or token)"
+regex = '''(?i)(?:^|[^A-Za-z0-9])(?:api[-_.]?key|password|secret|token)[ \t]*[=:][ \t]*(?:"[^"\r\n]+"|'[^'\r\n]+'|[^"'#\s](?:[^\s#\r\n]*))'''
+keywords = ["api.key", "api_key", "api-key", "apikey", "password", "secret", "token"]
+
+[rules.allowlist]
+description = "Environment variable placeholder, including empty or non-empty defaults"
+regexTarget = "line"
+regexes = ['''(?i)(?:api[-_.]?key|password|secret|token)[ \t]*[=:][ \t]*["']?\$\{[A-Za-z_][A-Za-z0-9_]*[^}\r\n]*\}["']?[ \t]*(?:\#.*)?\r?$''']
