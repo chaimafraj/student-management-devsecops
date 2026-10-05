@@ -1,13 +1,31 @@
+default_stages: [pre-commit]
+fail_fast: false
+
 repos:
-- repo: https://github.com/hmrc/security-git-hooks
-  rev: release/1.15.0
-  hooks:
-    - id: secrets_filecontent
-      name: Checking staged files for sensitive content
-      exclude: ".tar$|.gz$|.jar$|.7z$|.rar$|.bz2$|.zip$|.gzip$|.war$|.ear$|.xlsx$|.xls$|.docx$|.doc$|.pptx$|.pdf$|.jpg$|.png$|.jpeg$|.tif$|.tiff$|.gif$|.bmp$|.webp$|.svg$|.ico$|.psd$|.exe$|.dll$|.dmg$|.de$|.rpm$"
-    - id: secrets_filename
-      name: Checking staged files for sensitive file types
-      exclude: ".tar$|.gz$|.jar$|.7z$|.rar$|.bz2$|.zip$|.gzip$|.war$|.ear$|.xlsx$|.xls$|.docx$|.doc$|.pptx$|.pdf$|.jpg$|.png$|.jpeg$|.tif$|.tiff$|.gif$|.bmp$|.webp$|.svg$|.ico$|.psd$|.exe$|.dll$|.dmg$|.de$|.rpm$"
-    - id: hooks_version_check
-      name: Checking local hooks against latest release
-      verbose: true
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: Gitleaks - secrets in staged files
+        entry: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/security/gitleaks.ps1
+        language: system
+        pass_filenames: false
+
+      - id: semgrep
+        name: Semgrep - SAST (Java and TypeScript)
+        entry: semgrep --config .semgrep.yml --error --severity ERROR
+        language: system
+        types_or: [java, ts, tsx, javascript]
+
+      - id: maven-dependency-check
+        name: OWASP Dependency-Check - Maven (critical CVEs)
+        entry: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/security/maven-dependency-check.ps1
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: npm-audit
+        name: npm audit - Angular production dependencies (critical CVEs)
+        entry: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/security/npm-audit.ps1
+        language: system
+        pass_filenames: false
+        always_run: true
