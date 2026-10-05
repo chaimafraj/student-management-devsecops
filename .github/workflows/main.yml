@@ -20,7 +20,7 @@ concurrency:
 jobs:
   tests:
     name: Tests unitaires et compilation
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Configurer Java 17
@@ -49,24 +49,19 @@ jobs:
 
   sast:
     name: SAST - Semgrep
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
-      - name: Run Semgrep
-        uses: returntocorp/semgrep-action@v1
-        with:
-          config: p/security-audit
+      - run: semgrep scan --config p/security-audit --error
 
   secrets_scan:
     name: Scan de secrets - Gitleaks
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Remove stale Gitleaks download
-        run: rm -f /tmp/gitleaks.tmp
       - name: Run Gitleaks
         uses: gitleaks/gitleaks-action@v2
         env:
@@ -74,7 +69,7 @@ jobs:
 
   scan_dependencies:
     name: SCA - Trivy
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Configurer Java 17
@@ -126,23 +121,16 @@ jobs:
           path: trivy-frontend-dependencies.json
           if-no-files-found: warn
 
-  build:
-    name: Build Docker images
+  docker_scan:
+    name: Build et scan des images Docker
     needs: [tests, sast, secrets_scan, scan_dependencies]
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Prepare environment file
         run: cp .env.example .env
       - name: Build Docker images
         run: docker compose build
-
-  docker_scan:
-    name: Scan des images Docker
-    needs: build
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
       - name: Trivy image scan - backend
         id: backend_image_scan
         continue-on-error: true
@@ -188,26 +176,22 @@ jobs:
           echo 'Trivy detected HIGH or CRITICAL vulnerabilities. See the uploaded artifacts for details.'
           exit 1
 
-  deploy_staging:
-    name: Déploiement staging
+  dast:
+    name: DAST - OWASP ZAP (staging)
     needs: docker_scan
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     environment: staging
     steps:
       - uses: actions/checkout@v4
       - name: Prepare environment file
         run: cp .env.example .env
-      - name: Deploy application in staging
-        run: docker compose up -d
-
-  dast:
-    name: DAST - OWASP ZAP
-    needs: deploy_staging
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
+      - name: Start app (staging)
+        run: |
+          docker compose up -d --build
+          sleep 40
+          curl -sf http://127.0.0.1 || (docker compose logs && exit 1)
       - name: Create report directory
-        run: mkdir -p reports
+        run: mkdir -p reports && chmod 777 reports
       # Les alertes FAIL de ZAP rendent cette étape bloquante.
       - name: Run OWASP ZAP baseline scan
         run: |
@@ -228,7 +212,7 @@ jobs:
     # Une pull request ne peut jamais déployer en production.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: dast
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
