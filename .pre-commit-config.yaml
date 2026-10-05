@@ -8,7 +8,7 @@ repos:
         name: Gitleaks - secrets in staged files
         entry: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/security/gitleaks.ps1
         language: system
-        pass_filenames: false
+        pass_filenames: true
 
       - id: semgrep
         name: Semgrep - SAST (Java and TypeScript)
