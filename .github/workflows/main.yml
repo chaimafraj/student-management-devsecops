@@ -268,17 +268,105 @@ jobs:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Déterminer le statut global
-        id: status
+      - name: Télécharger les rapports
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          path: artifacts
+
+      - name: Construire l'email
+        id: mail
+        env:
+          R_TESTS: ${{ needs.tests.result }}
+          R_SAST: ${{ needs.sast.result }}
+          R_SECRETS: ${{ needs.secrets_scan.result }}
+          R_SCA: ${{ needs.scan_dependencies.result }}
+          R_BUILD: ${{ needs.build.result }}
+          R_DOCKER: ${{ needs.docker_scan.result }}
+          R_DAST: ${{ needs.dast.result }}
+          R_DEPLOY: ${{ needs.deploy.result }}
+          COMMIT_MSG: ${{ github.event.head_commit.message || github.event.pull_request.title }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          EVENT: ${{ github.event_name }}
+          SHA: ${{ github.sha }}
         run: |
-          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ]; then
-            echo "label=ÉCHEC" >> "$GITHUB_OUTPUT"
-          elif [ "${{ contains(needs.*.result, 'cancelled') }}" = "true" ]; then
-            echo "label=ANNULÉ" >> "$GITHUB_OUTPUT"
+          ALL="$R_TESTS $R_SAST $R_SECRETS $R_SCA $R_BUILD $R_DOCKER $R_DAST $R_DEPLOY"
+          if echo "$ALL" | grep -q failure; then LABEL="ÉCHEC"; COLOR="#d73a49"
+          elif echo "$ALL" | grep -q cancelled; then LABEL="ANNULÉ"; COLOR="#e36209"
+          else LABEL="SUCCÈS"; COLOR="#2da44e"; fi
+          echo "label=$LABEL" >> "$GITHUB_OUTPUT"
+
+          icon() {
+            case "$1" in
+              success) echo "✅ Réussi";;
+              failure) echo "❌ Échec";;
+              skipped) echo "⏭️ Ignoré";;
+              cancelled) echo "⚠️ Annulé";;
+              *) echo "$1";;
+            esac
+          }
+          row() { echo "<tr><td style='padding:6px 12px;border-bottom:1px solid #eee'>$1</td><td style='padding:6px 12px;border-bottom:1px solid #eee'>$(icon "$2")</td></tr>"; }
+
+          trivy_count() {
+            if [ -f "$1" ]; then jq '[.Results[]?.Vulnerabilities[]?] | length' "$1" 2>/dev/null || echo "n/a"; else echo "n/a"; fi
+          }
+          T_BACK=$(trivy_count artifacts/trivy-backend-dependencies/trivy-backend-dependencies.json)
+          T_FRONT=$(trivy_count artifacts/trivy-frontend-dependencies/trivy-frontend-dependencies.json)
+          I_BACK=$(trivy_count artifacts/trivy-backend-image/trivy-backend-image.json)
+          I_FRONT=$(trivy_count artifacts/trivy-frontend-image/trivy-frontend-image.json)
+          ZAP_FILE=artifacts/zap-dast-report/zap-report.json
+          if [ -f "$ZAP_FILE" ]; then
+            ZAP_ALERTS=$(jq '[.site[]?.alerts[]?] | length' "$ZAP_FILE" 2>/dev/null || echo "n/a")
+            ZAP_HIGH=$(jq '[.site[]?.alerts[]? | select(.riskcode=="3")] | length' "$ZAP_FILE" 2>/dev/null || echo "n/a")
           else
-            echo "label=SUCCÈS" >> "$GITHUB_OUTPUT"
+            ZAP_ALERTS="n/a"; ZAP_HIGH="n/a"
           fi
-      - name: Envoyer l'email de résultat
+
+          if [ -f artifacts/zap-dast-report/zap-report.html ]; then
+            echo "attach=artifacts/zap-dast-report/zap-report.html" >> "$GITHUB_OUTPUT"
+          else
+            echo "attach=" >> "$GITHUB_OUTPUT"
+          fi
+
+          MSG=$(printf '%s' "$COMMIT_MSG" | head -n1 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+
+          cat > mail.html <<EOF
+          <div style="font-family:Segoe UI,Arial,sans-serif;max-width:640px;margin:auto;border:1px solid #ddd;border-radius:8px;overflow:hidden">
+            <div style="background:$COLOR;color:#fff;padding:16px 20px">
+              <div style="font-size:20px;font-weight:bold">Pipeline DevSecOps : $LABEL</div>
+              <div style="font-size:13px;opacity:.9">$REPO · $BRANCH</div>
+            </div>
+            <div style="padding:16px 20px;font-size:14px;color:#333">
+              <p style="margin:0 0 4px"><b>Commit :</b> <a href="$COMMIT_URL">${SHA:0:7}</a> — $MSG</p>
+              <p style="margin:0 0 4px"><b>Auteur :</b> $ACTOR</p>
+              <p style="margin:0 0 12px"><b>Événement :</b> $EVENT</p>
+              <h3 style="margin:16px 0 6px">Étapes du pipeline</h3>
+              <table style="border-collapse:collapse;width:100%;font-size:14px">
+                $(row "Tests unitaires" "$R_TESTS")
+                $(row "SAST (Semgrep)" "$R_SAST")
+                $(row "Scan de secrets (Gitleaks)" "$R_SECRETS")
+                $(row "SCA (Trivy)" "$R_SCA")
+                $(row "Build Docker" "$R_BUILD")
+                $(row "Scan des images Docker" "$R_DOCKER")
+                $(row "DAST (OWASP ZAP)" "$R_DAST")
+                $(row "Déploiement" "$R_DEPLOY")
+              </table>
+              <h3 style="margin:16px 0 6px">Résumé sécurité</h3>
+              <ul style="margin:0;padding-left:20px">
+                <li>Dépendances HIGH/CRITICAL : backend <b>$T_BACK</b>, frontend <b>$T_FRONT</b></li>
+                <li>Images Docker HIGH/CRITICAL : backend <b>$I_BACK</b>, frontend <b>$I_FRONT</b></li>
+                <li>Alertes ZAP : <b>$ZAP_ALERTS</b> (dont niveau High : <b>$ZAP_HIGH</b>)</li>
+              </ul>
+              <p style="margin:20px 0 0"><a href="$RUN_URL" style="background:$COLOR;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none">Voir le run complet</a></p>
+            </div>
+          </div>
+          EOF
+
+      - name: Envoyer l'email
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -286,26 +374,8 @@ jobs:
           secure: true
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "[DevSecOps] ${{ steps.status.outputs.label }} - ${{ github.repository }} (${{ github.head_ref || github.ref_name }})"
+          subject: "[DevSecOps] ${{ steps.mail.outputs.label }} - ${{ github.repository }} (${{ github.head_ref || github.ref_name }})"
           to: farajchaima8@gmail.com
           from: DevSecOps Pipeline <${{ secrets.MAIL_USERNAME }}>
-          body: |
-            Résultat du pipeline DevSecOps : ${{ steps.status.outputs.label }}
-            
-            Dépôt   : ${{ github.repository }}
-            Branche : ${{ github.head_ref || github.ref_name }}
-            Commit  : ${{ github.sha }}
-            Auteur  : ${{ github.actor }}
-            Événement : ${{ github.event_name }}
-            
-            Résultats par étape :
-            - Tests         : ${{ needs.tests.result }}
-            - SAST          : ${{ needs.sast.result }}
-            - Secrets       : ${{ needs.secrets_scan.result }}
-            - SCA           : ${{ needs.scan_dependencies.result }}
-            - Build         : ${{ needs.build.result }}
-            - Scan Docker   : ${{ needs.docker_scan.result }}
-            - DAST          : ${{ needs.dast.result }}
-            - Déploiement   : ${{ needs.deploy.result }}
-            
-            Détails : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          html_body: file://mail.html
+          attachments: ${{ steps.mail.outputs.attach }}
