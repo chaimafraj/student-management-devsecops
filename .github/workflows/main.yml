@@ -276,14 +276,14 @@ jobs:
           secure: true
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "[DevSecOps] Pipeline en échec - ${{ github.repository }} (${{ github.ref_name }})"
+          subject: "[DevSecOps] Pipeline en échec - ${{ github.repository }} (${{ github.head_ref || github.ref_name }})"
           to: farajchaima8@gmail.com
           from: DevSecOps Pipeline <${{ secrets.MAIL_USERNAME }}>
           body: |
             Le pipeline DevSecOps a échoué.
 
             Dépôt   : ${{ github.repository }}
-            Branche : ${{ github.ref_name }}
+            Branche : ${{  github.head_ref || github.ref_name  }}
             Commit  : ${{ github.sha }}
             Auteur  : ${{ github.actor }}
 
