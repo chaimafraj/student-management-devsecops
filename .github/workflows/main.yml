@@ -265,10 +265,20 @@ jobs:
   notify:
     name: Notification email
     needs: [ tests, sast, secrets_scan, scan_dependencies, build, docker_scan, dast, deploy ]
-    if: always() && contains(needs.*.result, 'failure')
+    if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Envoyer l'email d'échec
+      - name: Déterminer le statut global
+        id: status
+        run: |
+          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ]; then
+            echo "label=ÉCHEC" >> "$GITHUB_OUTPUT"
+          elif [ "${{ contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "label=ANNULÉ" >> "$GITHUB_OUTPUT"
+          else
+            echo "label=SUCCÈS" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Envoyer l'email de résultat
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
@@ -276,17 +286,18 @@ jobs:
           secure: true
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "[DevSecOps] Pipeline en échec - ${{ github.repository }} (${{ github.head_ref || github.ref_name }})"
+          subject: "[DevSecOps] ${{ steps.status.outputs.label }} - ${{ github.repository }} (${{ github.head_ref || github.ref_name }})"
           to: farajchaima8@gmail.com
           from: DevSecOps Pipeline <${{ secrets.MAIL_USERNAME }}>
           body: |
-            Le pipeline DevSecOps a échoué.
-
+            Résultat du pipeline DevSecOps : ${{ steps.status.outputs.label }}
+            
             Dépôt   : ${{ github.repository }}
-            Branche : ${{  github.head_ref || github.ref_name  }}
+            Branche : ${{ github.head_ref || github.ref_name }}
             Commit  : ${{ github.sha }}
             Auteur  : ${{ github.actor }}
-
+            Événement : ${{ github.event_name }}
+            
             Résultats par étape :
             - Tests         : ${{ needs.tests.result }}
             - SAST          : ${{ needs.sast.result }}
@@ -296,5 +307,5 @@ jobs:
             - Scan Docker   : ${{ needs.docker_scan.result }}
             - DAST          : ${{ needs.dast.result }}
             - Déploiement   : ${{ needs.deploy.result }}
-
+            
             Détails : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
