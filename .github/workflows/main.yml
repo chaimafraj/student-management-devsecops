@@ -257,6 +257,8 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+      - name: Échec volontaire (test notification)
+        run: exit 1
       - name: Prepare environment file
         run: cp .env.example .env
       - name: Deploy application
