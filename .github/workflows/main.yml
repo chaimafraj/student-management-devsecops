@@ -261,3 +261,40 @@ jobs:
         run: cp .env.example .env
       - name: Deploy application
         run: docker compose up -d
+
+  notify:
+    name: Notification email
+    needs: [ tests, sast, secrets_scan, scan_dependencies, build, docker_scan, dast, deploy ]
+    if: always() && contains(needs.*.result, 'failure')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Envoyer l'email d'échec
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+          subject: "[DevSecOps] Pipeline en échec - ${{ github.repository }} (${{ github.ref_name }})"
+          to: farajchaima8@gmail.com
+          from: DevSecOps Pipeline <${{ secrets.MAIL_USERNAME }}>
+          body: |
+            Le pipeline DevSecOps a échoué.
+
+            Dépôt   : ${{ github.repository }}
+            Branche : ${{ github.ref_name }}
+            Commit  : ${{ github.sha }}
+            Auteur  : ${{ github.actor }}
+
+            Résultats par étape :
+            - Tests         : ${{ needs.tests.result }}
+            - SAST          : ${{ needs.sast.result }}
+            - Secrets       : ${{ needs.secrets_scan.result }}
+            - SCA           : ${{ needs.scan_dependencies.result }}
+            - Build         : ${{ needs.build.result }}
+            - Scan Docker   : ${{ needs.docker_scan.result }}
+            - DAST          : ${{ needs.dast.result }}
+            - Déploiement   : ${{ needs.deploy.result }}
+
+            Détails : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
