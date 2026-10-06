@@ -121,8 +121,8 @@ jobs:
           path: trivy-frontend-dependencies.json
           if-no-files-found: warn
 
-  docker_scan:
-    name: Build et scan des images Docker
+  build:
+    name: Build Docker images
     needs: [tests, sast, secrets_scan, scan_dependencies]
     runs-on: ubuntu-latest
     steps:
@@ -131,6 +131,28 @@ jobs:
         run: cp .env.example .env
       - name: Build Docker images
         run: docker compose build
+      - name: Save images
+        run: |
+          docker save student-management-devsecops-backend:latest student-management-devsecops-frontend:latest -o images.tar
+      - name: Upload images artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-images
+          path: images.tar
+          retention-days: 1
+
+  docker_scan:
+    name: Scan des images Docker
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download images artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-images
+      - name: Load images
+        run: docker load -i images.tar
       - name: Trivy image scan - backend
         id: backend_image_scan
         continue-on-error: true
