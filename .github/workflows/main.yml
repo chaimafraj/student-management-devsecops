@@ -53,7 +53,17 @@ jobs:
     container: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
-      - run: semgrep scan --config p/security-audit --error
+      - name: Semgrep scan
+        run: semgrep scan --config p/security-audit --error --json-output=semgrep-report.json --sarif-output=semgrep-report.sarif
+      - name: Upload Semgrep reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-report
+          path: |
+            semgrep-report.json
+            semgrep-report.sarif
+          if-no-files-found: warn
 
   secrets_scan:
     name: Scan de secrets - Gitleaks
@@ -66,6 +76,19 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Rapport Gitleaks (JSON)
+        if: always()
+        continue-on-error: true
+        run: |
+          docker run --rm -v "$PWD:/repo" --entrypoint sh zricethezav/gitleaks:v8.18.4 \
+            -c "git config --global --add safe.directory /repo && gitleaks detect --source /repo --report-format json --report-path /repo/gitleaks-report.json --exit-code 0"
+      - name: Upload Gitleaks report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: gitleaks-report.json
+          if-no-files-found: warn
 
   scan_dependencies:
     name: SCA - Trivy
@@ -95,12 +118,26 @@ jobs:
           format: json
           output: trivy-backend-dependencies.json
           timeout: 30m
+      - name: Trivy HTML report - backend
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: backend
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+          format: template
+          template: '@/contrib/html.tpl'
+          output: trivy-backend-dependencies.html
       - name: Upload backend SCA report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-backend-dependencies
-          path: trivy-backend-dependencies.json
+          path: |
+            trivy-backend-dependencies.json
+            trivy-backend-dependencies.html
           if-no-files-found: warn
       - name: Trivy filesystem scan - frontend
         uses: aquasecurity/trivy-action@v0.36.0
@@ -113,12 +150,26 @@ jobs:
           format: json
           output: trivy-frontend-dependencies.json
           timeout: 30m
+      - name: Trivy HTML report - frontend
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: frontend
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+          format: template
+          template: '@/contrib/html.tpl'
+          output: trivy-frontend-dependencies.html
       - name: Upload frontend SCA report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-frontend-dependencies
-          path: trivy-frontend-dependencies.json
+          path: |
+            trivy-frontend-dependencies.json
+            trivy-frontend-dependencies.html
           if-no-files-found: warn
 
   build:
@@ -166,12 +217,26 @@ jobs:
           output: trivy-backend-image.json
           timeout: 30m
           skip-files: '**/*.jar'
+      - name: Trivy HTML report - backend image
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: student-management-devsecops-backend:latest
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+          format: template
+          template: '@/contrib/html.tpl'
+          output: trivy-backend-image.html
+          skip-files: '**/*.jar'
       - name: Upload backend image report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-backend-image
-          path: trivy-backend-image.json
+          path: |
+            trivy-backend-image.json
+            trivy-backend-image.html
           if-no-files-found: warn
       - name: Trivy image scan - frontend
         id: frontend_image_scan
@@ -185,12 +250,25 @@ jobs:
           format: json
           output: trivy-frontend-image.json
           timeout: 30m
+      - name: Trivy HTML report - frontend image
+        if: always()
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: student-management-devsecops-frontend:latest
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          exit-code: '0'
+          format: template
+          template: '@/contrib/html.tpl'
+          output: trivy-frontend-image.html
       - name: Upload frontend image report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trivy-frontend-image
-          path: trivy-frontend-image.json
+          path: |
+            trivy-frontend-image.json
+            trivy-frontend-image.html
           if-no-files-found: warn
       - name: Trivy image scan - backend (table)
         if: always()
@@ -264,7 +342,7 @@ jobs:
 
   notify:
     name: Notification email
-    needs: [ tests, sast, secrets_scan, scan_dependencies, build, docker_scan, dast, deploy ]
+    needs: [tests, sast, secrets_scan, scan_dependencies, build, docker_scan, dast, deploy]
     if: always()
     runs-on: ubuntu-latest
     steps:
