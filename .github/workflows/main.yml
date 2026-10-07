@@ -307,7 +307,7 @@ jobs:
           elif echo "$ALL" | grep -q cancelled; then LABEL="ANNULÉ"; COLOR="#e36209"
           else LABEL="SUCCÈS"; COLOR="#2da44e"; fi
           echo "label=$LABEL" >> "$GITHUB_OUTPUT"
-          
+
           icon() {
             case "$1" in
               success) echo "✅ Réussi";;
@@ -320,13 +320,13 @@ jobs:
           TD="padding:6px 12px;border-bottom:1px solid #eee"
           row() { echo "<tr><td style='$TD'>$1</td><td style='$TD'>$(icon "$2")</td></tr>"; }
           row_text() { echo "<tr><td style='$TD'>$1</td><td style='$TD'>$2</td></tr>"; }
-          
+
           if [ "$R_DEPLOY" = "skipped" ] && [ "$EVENT" = "pull_request" ]; then
             DEPLOY_ROW=$(row_text "Déploiement" "⏭️ Ignoré (pull request, pas de déploiement)")
           else
             DEPLOY_ROW=$(row "Déploiement" "$R_DEPLOY")
           fi
-          
+
           # Étapes en échec
           FAILED=""
           check() {
@@ -340,7 +340,7 @@ jobs:
           check "Scan des images Docker" "$R_DOCKER"
           check "DAST (OWASP ZAP)" "$R_DAST"
           check "Déploiement" "$R_DEPLOY"
-          
+
           if [ -n "$FAILED" ]; then
             FAIL_BOX="<div style='background:#ffebe9;border:1px solid #d73a49;border-radius:6px;padding:10px 14px;margin:12px 0'><b>Étapes bloquantes :</b><ul style='margin:6px 0 0;padding-left:20px'>$FAILED</ul></div>"
             GATE="❌ Quality gate : déploiement bloqué, corrigez les points ci-dessus."
@@ -351,7 +351,7 @@ jobs:
             FAIL_BOX=""
             GATE="⚠️ Pipeline annulé avant la fin des contrôles."
           fi
-          
+
           # Comptage Trivy
           trivy_count() {
             if [ -f "$1" ]; then
@@ -368,7 +368,7 @@ jobs:
           T_FRONT=$(trivy_count "$F_TF")
           I_BACK=$(trivy_count "$F_IB")
           I_FRONT=$(trivy_count "$F_IF")
-          
+
           # Tableau des CVE (10 lignes max)
           cve_rows() {
             for f in "$@"; do
@@ -384,7 +384,7 @@ jobs:
           else
             CVE_SECTION=""
           fi
-          
+
           # Détail ZAP
           ZAP_FILE=artifacts/zap-dast-report/zap-report.json
           ZAP_TOTAL="n/a"; ZAP_H="n/a"; ZAP_M="n/a"; ZAP_L="n/a"; ZAP_I="n/a"; ZAP_LIST=""
@@ -401,17 +401,17 @@ jobs:
           else
             ZAP_DETAIL=""
           fi
-          
+
           # Pièces jointes
           ATT=""
           for f in artifacts/zap-dast-report/zap-report.html "$F_TB" "$F_TF" "$F_IB" "$F_IF"; do
             if [ -f "$f" ]; then ATT="$ATT,$f"; fi
           done
           echo "attach=${ATT#,}" >> "$GITHUB_OUTPUT"
-          
+
           MSG=$(printf '%s' "$COMMIT_MSG" | head -n1 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
           WHEN=$(TZ=Africa/Tunis date '+%d/%m/%Y à %H:%M')
-          
+
           cat > mail.html <<EOF
           <div style="font-family:Segoe UI,Arial,sans-serif;max-width:660px;margin:auto;border:1px solid #ddd;border-radius:8px;overflow:hidden">
             <div style="background:$COLOR;color:#fff;padding:16px 20px">
