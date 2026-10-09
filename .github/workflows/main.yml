@@ -344,9 +344,42 @@ jobs:
       - name: Deploy application
         run: docker compose up -d
 
+  publish:
+    name: Publication des images (GHCR)
+    needs: dast
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download images artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docker-images
+      - name: Load images
+        run: docker load -i images.tar
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Tag and push
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          for svc in backend frontend; do
+            SRC=student-management-devsecops-$svc:latest
+            DST=ghcr.io/$OWNER/student-management-devsecops-$svc
+            docker tag $SRC $DST:latest
+            docker tag $SRC $DST:${{ github.sha }}
+            docker push $DST:latest
+            docker push $DST:${{ github.sha }}
+          done
+
   notify:
     name: Notification email
-    needs: [ tests, sast, secrets_scan, scan_dependencies, build, docker_scan, dast, deploy ]
+    needs: [tests, sast, secrets_scan, scan_dependencies, build, docker_scan, dast, deploy, publish]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -375,6 +408,7 @@ jobs:
           R_DOCKER: ${{ needs.docker_scan.result }}
           R_DAST: ${{ needs.dast.result }}
           R_DEPLOY: ${{ needs.deploy.result }}
+          R_PUBLISH: ${{ needs.publish.result }}
           COMMIT_MSG: ${{ github.event.head_commit.message || github.event.pull_request.title }}
           BRANCH: ${{ github.head_ref || github.ref_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -384,12 +418,12 @@ jobs:
           EVENT: ${{ github.event_name }}
           SHA: ${{ github.sha }}
         run: |
-          ALL="$R_TESTS $R_SAST $R_SECRETS $R_SCA $R_BUILD $R_DOCKER $R_DAST $R_DEPLOY"
+          ALL="$R_TESTS $R_SAST $R_SECRETS $R_SCA $R_BUILD $R_DOCKER $R_DAST $R_DEPLOY $R_PUBLISH"
           if echo "$ALL" | grep -q failure; then LABEL="ÉCHEC"; COLOR="#d73a49"
           elif echo "$ALL" | grep -q cancelled; then LABEL="ANNULÉ"; COLOR="#e36209"
           else LABEL="SUCCÈS"; COLOR="#2da44e"; fi
           echo "label=$LABEL" >> "$GITHUB_OUTPUT"
-          
+
           icon() {
             case "$1" in
               success) echo "✅ Réussi";;
@@ -402,13 +436,15 @@ jobs:
           TD="padding:6px 12px;border-bottom:1px solid #eee"
           row() { echo "<tr><td style='$TD'>$1</td><td style='$TD'>$(icon "$2")</td></tr>"; }
           row_text() { echo "<tr><td style='$TD'>$1</td><td style='$TD'>$2</td></tr>"; }
-          
+
           if [ "$R_DEPLOY" = "skipped" ] && [ "$EVENT" = "pull_request" ]; then
             DEPLOY_ROW=$(row_text "Déploiement" "⏭️ Ignoré (pull request, pas de déploiement)")
+            PUBLISH_ROW=$(row_text "Publication des images (GHCR)" "⏭️ Ignoré (pull request)")
           else
             DEPLOY_ROW=$(row "Déploiement" "$R_DEPLOY")
+            PUBLISH_ROW=$(row "Publication des images (GHCR)" "$R_PUBLISH")
           fi
-          
+
           # Étapes en échec
           FAILED=""
           check() {
@@ -422,7 +458,8 @@ jobs:
           check "Scan des images Docker" "$R_DOCKER"
           check "DAST (OWASP ZAP)" "$R_DAST"
           check "Déploiement" "$R_DEPLOY"
-          
+          check "Publication des images (GHCR)" "$R_PUBLISH"
+
           if [ -n "$FAILED" ]; then
             FAIL_BOX="<div style='background:#ffebe9;border:1px solid #d73a49;border-radius:6px;padding:10px 14px;margin:12px 0'><b>Étapes bloquantes :</b><ul style='margin:6px 0 0;padding-left:20px'>$FAILED</ul></div>"
             GATE="❌ Quality gate : déploiement bloqué, corrigez les points ci-dessus."
@@ -433,7 +470,7 @@ jobs:
             FAIL_BOX=""
             GATE="⚠️ Pipeline annulé avant la fin des contrôles."
           fi
-          
+
           # Comptage Trivy
           trivy_count() {
             if [ -f "$1" ]; then
@@ -450,7 +487,7 @@ jobs:
           T_FRONT=$(trivy_count "$F_TF")
           I_BACK=$(trivy_count "$F_IB")
           I_FRONT=$(trivy_count "$F_IF")
-          
+
           # Tableau des CVE (10 lignes max)
           cve_rows() {
             for f in "$@"; do
@@ -466,7 +503,7 @@ jobs:
           else
             CVE_SECTION=""
           fi
-          
+
           # Détail ZAP
           ZAP_FILE=artifacts/zap-dast-report/zap-report.json
           ZAP_TOTAL="n/a"; ZAP_H="n/a"; ZAP_M="n/a"; ZAP_L="n/a"; ZAP_I="n/a"; ZAP_LIST=""
@@ -483,17 +520,17 @@ jobs:
           else
             ZAP_DETAIL=""
           fi
-          
+
           # Pièces jointes
           ATT=""
           for f in artifacts/zap-dast-report/zap-report.html "$F_TB" "$F_TF" "$F_IB" "$F_IF"; do
             if [ -f "$f" ]; then ATT="$ATT,$f"; fi
           done
           echo "attach=${ATT#,}" >> "$GITHUB_OUTPUT"
-          
+
           MSG=$(printf '%s' "$COMMIT_MSG" | head -n1 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
           WHEN=$(TZ=Africa/Tunis date '+%d/%m/%Y à %H:%M')
-          
+
           cat > mail.html <<EOF
           <div style="font-family:Segoe UI,Arial,sans-serif;max-width:660px;margin:auto;border:1px solid #ddd;border-radius:8px;overflow:hidden">
             <div style="background:$COLOR;color:#fff;padding:16px 20px">
@@ -516,6 +553,7 @@ jobs:
                 $(row "Scan des images Docker" "$R_DOCKER")
                 $(row "DAST (OWASP ZAP)" "$R_DAST")
                 $DEPLOY_ROW
+                $PUBLISH_ROW
               </table>
               <h3 style="margin:16px 0 6px">Résumé sécurité</h3>
               <ul style="margin:0;padding-left:20px">
