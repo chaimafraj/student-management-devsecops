@@ -587,3 +587,22 @@ jobs:
           from: DevSecOps Pipeline <${{ secrets.MAIL_USERNAME }}>
           html_body: file://mail.html
           attachments: ${{ steps.mail.outputs.attach }}
+  sync_local:
+    name: Mise à jour Docker Desktop (local)
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [ self-hosted, windows ]
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login GHCR
+        shell: powershell
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Pull et redémarrage
+        shell: powershell
+        run: |
+          if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+          docker compose -f docker-compose.ghcr.yml pull
+          docker compose -f docker-compose.ghcr.yml up -d
