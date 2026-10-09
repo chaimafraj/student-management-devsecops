@@ -176,14 +176,16 @@ jobs:
 
   build:
     name: Build Docker images
-    needs: [tests, sast, secrets_scan, scan_dependencies]
+    needs: [ tests, sast, secrets_scan, scan_dependencies ]
     runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: student-management-devsecops
     steps:
       - uses: actions/checkout@v4
       - name: Prepare environment file
         run: cp .env.example .env
       - name: Build Docker images
-        run: docker compose build
+        run: docker compose build --pull
       - name: Save images
         run: |
           docker save student-management-devsecops-backend:latest student-management-devsecops-frontend:latest -o images.tar
