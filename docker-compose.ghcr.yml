@@ -1,0 +1,13 @@
+# Surcharge de docker-compose.yml : utilise les images construites, scannées
+# et publiées par le pipeline (GHCR) au lieu des images construites en local.
+#
+# Usage :
+#   docker compose -f docker-compose.yml -f docker-compose.ghcr.yml pull
+#   docker compose -f docker-compose.yml -f docker-compose.ghcr.yml up -d --no-build
+services:
+  backend:
+    image: ghcr.io/chaimafraj/student-management-devsecops-backend:latest
+    pull_policy: always
+  frontend:
+    image: ghcr.io/chaimafraj/student-management-devsecops-frontend:latest
+    pull_policy: always
